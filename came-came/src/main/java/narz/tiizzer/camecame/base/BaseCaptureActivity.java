@@ -27,29 +27,17 @@ import narz.tiizzer.camecame.util.CameraUtil;
  * Created by narztiizzer on 8/19/2016 AD.
  */
 public abstract class BaseCaptureActivity extends AppCompatActivity implements BaseCaptureInterface {
-    private int mCameraPosition = InitialCamera.CAMERA_POSITION_UNKNOWN;
+
     private boolean mRequestingPermission;
-    private Object mFrontCameraId;
-    private Object mBackCameraId;
+    private boolean isHasFrontCamera , isHasRearCamera;
 
     public static final int PERMISSION_RC = 69;
-
-    private String currentFlashMode = Camera.Parameters.FLASH_MODE_AUTO;
 
     @Override
     protected final void onSaveInstanceState(Bundle outState) {
         super.onSaveInstanceState(outState);
-        outState.putInt("camera_position", mCameraPosition);
-        outState.putBoolean("requesting_permission", mRequestingPermission);
-        if (mFrontCameraId instanceof String) {
-            outState.putString("front_camera_id_str", (String) mFrontCameraId);
-            outState.putString("back_camera_id_str", (String) mBackCameraId);
-        } else {
-            if (mFrontCameraId != null)
-                outState.putInt("front_camera_id_int", (Integer) mFrontCameraId);
-            if (mBackCameraId != null)
-                outState.putInt("back_camera_id_int", (Integer) mBackCameraId);
-        }
+        outState.putBoolean(InitialCamera.FRONT_CAMERA , isHasFrontCamera);
+        outState.putBoolean(InitialCamera.REAR_CAMERA , isHasRearCamera);
     }
 
     @SuppressWarnings("ResourceAsColor")
@@ -69,30 +57,24 @@ public abstract class BaseCaptureActivity extends AppCompatActivity implements B
                     }).show();
             return;
         }
-        setContentView(R.layout.camera_activity);
 
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
-            final Window window = getWindow();
-            window.setStatusBarColor(setStatusBarColor() != 0 ? setStatusBarColor() : R.color.colorPrimaryDark);
-            window.setNavigationBarColor(setNavigationBarColor()!= 0 ? setNavigationBarColor() : R.color.colorPrimaryDark);
-        }
-
-        if (null == savedInstanceState) {
-            checkPermissions();
-        } else {
-            mCameraPosition = savedInstanceState.getInt("camera_position", -1);
-            mRequestingPermission = savedInstanceState.getBoolean("requesting_permission", false);
-            if (savedInstanceState.containsKey("front_camera_id_str")) {
-                mFrontCameraId = savedInstanceState.getString("front_camera_id_str");
-                mBackCameraId = savedInstanceState.getString("back_camera_id_str");
-            } else {
-                mFrontCameraId = savedInstanceState.getInt("front_camera_id_int");
-                mBackCameraId = savedInstanceState.getInt("back_camera_id_int");
+        if(!checkCameraFromInstanceState(savedInstanceState)) {
+            int numberOfCameras = Camera.getNumberOfCameras();
+            for (int i = 0; i < numberOfCameras; i++) {
+                Camera.CameraInfo info = new Camera.CameraInfo();
+                Camera.getCameraInfo(i, info);
+                if (info.facing == Camera.CameraInfo.CAMERA_FACING_FRONT) {
+                    this.isHasFrontCamera = true;
+                } else if (info.facing == Camera.CameraInfo.CAMERA_FACING_BACK) {
+                    this.isHasRearCamera = true;
+                }
             }
         }
 
-        getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON |
-                WindowManager.LayoutParams.FLAG_FULLSCREEN);
+        getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
+        setContentView(R.layout.camera_activity);
+
+        checkPermissions();
     }
 
     private void checkPermissions() {
@@ -128,54 +110,22 @@ public abstract class BaseCaptureActivity extends AppCompatActivity implements B
     }
 
     @Override
-    public void setCameraPosition(int position) {
-        mCameraPosition = position;
-    }
-
-    @Override
-    public void toggleCameraPosition() {
-        if (getCurrentCameraPosition() == InitialCamera.CAMERA_POSITION_FRONT) {
+    public boolean toggleCameraPosition() {
+        if (getCurrentCameraPosition() == Camera.CameraInfo.CAMERA_FACING_FRONT) {
             // Front, go to back if possible
-            if (getBackCamera() != null)
-                setCameraPosition(InitialCamera.CAMERA_POSITION_BACK);
+            if (this.isHasRearCamera) {
+                setCameraPosition(Camera.CameraInfo.CAMERA_FACING_BACK);
+                return true;
+            } else return false;
         } else {
             // Back, go to front if possible
-            if (getFrontCamera() != null)
-                setCameraPosition(InitialCamera.CAMERA_POSITION_FRONT);
+            if (this.isHasFrontCamera) {
+                setCameraPosition(Camera.CameraInfo.CAMERA_FACING_FRONT);
+                return true;
+            } else return false;
         }
     }
 
-    @Override
-    public int getCurrentCameraPosition() {
-        return mCameraPosition;
-    }
-
-    @Override
-    public Object getCurrentCameraId() {
-        if (getCurrentCameraPosition() == InitialCamera.CAMERA_POSITION_FRONT)
-            return getFrontCamera();
-        else return getBackCamera();
-    }
-
-    @Override
-    public void setFrontCamera(Object id) {
-        mFrontCameraId = id;
-    }
-
-    @Override
-    public Object getFrontCamera() {
-        return mFrontCameraId;
-    }
-
-    @Override
-    public void setBackCamera(Object id) {
-        mBackCameraId = id;
-    }
-
-    @Override
-    public Object getBackCamera() {
-        return mBackCameraId;
-    }
 
     private void showInitialRecorder() {
         BaseCameraFragment cameraFragment = CameraPreviewFragment.newInstance();
@@ -221,14 +171,11 @@ public abstract class BaseCaptureActivity extends AppCompatActivity implements B
         return 1080;
     }
 
-    @Override
-    public String getCurrentFlashMode() {
-        return currentFlashMode;
-    }
-
-    @Override
-    public void setCurrentFlashMode(String currentFlashMode) {
-        this.currentFlashMode = currentFlashMode;
+    private boolean checkCameraFromInstanceState(Bundle bundle) {
+        if(bundle == null) return false;
+        this.isHasFrontCamera = bundle.getBoolean(InitialCamera.FRONT_CAMERA , false);
+        this.isHasRearCamera = bundle.getBoolean(InitialCamera.REAR_CAMERA , false);
+        return this.isHasFrontCamera || this.isHasRearCamera;
     }
 
 }

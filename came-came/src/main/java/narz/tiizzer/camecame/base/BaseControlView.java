@@ -1,12 +1,15 @@
 package narz.tiizzer.camecame.base;
 
 import android.app.Fragment;
+import android.graphics.Bitmap;
+import android.hardware.Camera;
 import android.os.Bundle;
 import android.support.annotation.LayoutRes;
 import android.support.annotation.Nullable;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
+import android.view.ViewTreeObserver;
 import android.widget.Button;
 
 import narz.tiizzer.camecame.InitialCamera;
@@ -15,28 +18,24 @@ import narz.tiizzer.camecame.interfaces.BaseControlViewInterface;
 /**
  * Created by narztiizzer on 8/25/2016 AD.
  */
-public abstract class BaseControlView extends Fragment {
+public abstract class BaseControlView extends Fragment  {
     public View switchCameraButton;
     public View flashButton;
     public View captureButton;
     private BaseControlViewInterface controlInterface;
 
-    public abstract int setFrontCameraIcon();
-    public abstract int setRearCameraIcon();
-    public abstract int setCaptureIcon();
-    public abstract int setRetakeIcon();
-    public abstract int setFlashOnIcon();
-    public abstract int setFlashOffIcon();
-    public abstract int setFlashAutoIcon();
-    public abstract String setControlBackgroundColor();
+    @SuppressWarnings("deprecation")
+    public abstract void onCapture(Bitmap bmp , Camera camera);
+    public abstract void onFlashStateChanged(String flashState , String message);
+    public abstract void onSwitchedCamera(int cameraId , String message);
 
     @LayoutRes
     public abstract int setControlLayout();
     public abstract void onControlViewCreated(View controlView , Bundle savedInstanceState);
 
-    public void setCaptureControlView(View captureButton) {  this.captureButton = captureButton; }
-    public void setSwitchCameraControlView(View switchCameraButton) { this.switchCameraButton = switchCameraButton; }
-    public void setFlashControlView(View flashButton) { this.flashButton = flashButton; }
+    public abstract int setCaptureControlView();
+    public abstract int setSwitchCameraControlView();
+    public abstract int setFlashControlView();
 
     public View getCaptureControlView() { return captureButton; }
     public View getSwitchCameraControlView() { return switchCameraButton; }
@@ -59,7 +58,12 @@ public abstract class BaseControlView extends Fragment {
     @Override
     public void onViewCreated(View view, Bundle savedInstanceState) {
         super.onViewCreated(view, savedInstanceState);
+        this.switchCameraButton = view.findViewById(setSwitchCameraControlView());
+        this.captureButton = view.findViewById(setCaptureControlView());
+        this.flashButton = view.findViewById(setFlashControlView());
+
         onControlViewCreated(view , savedInstanceState);
+        invalidateControlView();
     }
 
 

@@ -1,27 +1,26 @@
 package narz.tiizzer.camecame;
 
 import android.annotation.TargetApi;
-import android.app.Activity;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
-import android.graphics.Point;
+import android.graphics.Matrix;
 import android.graphics.Rect;
-import android.graphics.drawable.Drawable;
 import android.hardware.Camera;
 import android.os.Build;
 import android.os.Bundle;
 import android.util.Log;
 import android.view.MotionEvent;
+import android.view.SurfaceHolder;
 import android.view.View;
 import android.view.ViewGroup;
-import android.widget.FrameLayout;
-import android.widget.Toast;
 
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 
 import narz.tiizzer.camecame.base.BaseCameraFragment;
+import narz.tiizzer.camecame.base.BaseControlView;
 import narz.tiizzer.camecame.camera.DrawingFocus;
 import narz.tiizzer.camecame.helper.ScreenHelper;
 import narz.tiizzer.camecame.interfaces.BaseCaptureInterface;
@@ -35,25 +34,32 @@ import narz.tiizzer.camecame.util.CompareSizesByArea;
 
 @SuppressWarnings("deprecation")
 @TargetApi(Build.VERSION_CODES.JELLY_BEAN)
-public class CameraPreviewFragment extends BaseCameraFragment implements View.OnTouchListener , Camera.AutoFocusCallback {
-    CameraPreview mPreviewView;
-    View mPreviewFrame;
+public class CameraPreviewFragment extends BaseCameraFragment implements View.OnTouchListener , Camera.AutoFocusCallback , SurfaceHolder.Callback{
+    private CameraPreview mPreviewView;
+    private View mPreviewFrame;
+    private BaseControlView mBaseControlView;
+    private BaseCaptureInterface mBaseCaptureInterface;
 
     private Camera.Size mVideoSize;
     private Camera mCamera;
-    private Point mWindowSize;
     private int mDisplayOrientation;
-    private boolean mIsAutoFocusing;
     private List<Camera.Size> collectionSize;
-    private boolean isTouchFocusActivate = true;
     private DrawingFocus drawingFocusView;
     private Rect touchFocusPosition;
+    private CameraPreview mCameraPreview;
+    private SurfaceHolder mCameraSurfaceHolder;
+    private boolean hasAutoFocus;
+
 
     public static CameraPreviewFragment newInstance() {
         CameraPreviewFragment fragment = new CameraPreviewFragment();
-        fragment.setRetainInstance(true);
-        fragment.setArguments(new Bundle());
         return fragment;
+    }
+
+    @Override
+    public void onCreate(Bundle savedInstanceState) {
+        super.onCreate(savedInstanceState);
+        this.mBaseCaptureInterface = super.getBaseCaptureInterface();
     }
 
     private static Camera.Size chooseVideoSize(BaseCaptureInterface ci, List<Camera.Size> choices) {
@@ -101,82 +107,33 @@ public class CameraPreviewFragment extends BaseCameraFragment implements View.On
     @Override
     public void onViewCreated(final View view, Bundle savedInstanceState) {
         super.onViewCreated(view, savedInstanceState);
-        mPreviewFrame = view.findViewById(R.id.rootFrame);
-        mPreviewFrame.setOnTouchListener(this);
-        setFocusView();
-        super.getBaseCaptureInterface().setCameraPosition(InitialCamera.CAMERA_POSITION_BACK);
+        mCameraPreview = (CameraPreview) view.findViewById(R.id.camera_preview);
+
+        getActivity().runOnUiThread(new Runnable() {
+            @Override
+            public void run() {
+                mCameraSurfaceHolder = mCameraPreview.getHolder();
+                mCameraSurfaceHolder.addCallback(CameraPreviewFragment.this);
+                mCameraSurfaceHolder.setType(SurfaceHolder.SURFACE_TYPE_PUSH_BUFFERS);
+
+                mPreviewFrame = view.findViewById(R.id.rootFrame);
+                mPreviewFrame.setOnTouchListener(CameraPreviewFragment.this);
+                setFocusView();
+            }
+        });
+
     }
 
     @Override
     public void openCamera() {
-        final Activity activity = getActivity();
-        if (null == activity || activity.isFinishing()) return;
-        try {
-
-            final int mBackCameraId = super.getBaseCaptureInterface().getBackCamera() != null ? (Integer) getBaseCaptureInterface().getBackCamera() : -1;
-            final int mFrontCameraId = super.getBaseCaptureInterface().getFrontCamera() != null ? (Integer) getBaseCaptureInterface().getFrontCamera() : -1;
-            if (mBackCameraId == -1 || mFrontCameraId == -1) {
-                int numberOfCameras = Camera.getNumberOfCameras();
-                if (numberOfCameras == 0) {
-                    throwError(new Exception("No cameras are available on this device."));
-                    return;
-                }
-
-                for (int i = 0; i < numberOfCameras; i++) {
-                    //noinspection ConstantConditions
-                    if (mFrontCameraId != -1 && mBackCameraId != -1) break;
-                    Camera.CameraInfo info = new Camera.CameraInfo();
-                    Camera.getCameraInfo(i, info);
-                    if (info.facing == Camera.CameraInfo.CAMERA_FACING_FRONT && mFrontCameraId == -1) {
-                        super.getBaseCaptureInterface().setFrontCamera(i);
-                    } else if (info.facing == Camera.CameraInfo.CAMERA_FACING_BACK && mBackCameraId == -1) {
-                        super.getBaseCaptureInterface().setBackCamera(i);
-                    }
-                }
-            }
-
-            if (mWindowSize == null)
-                mWindowSize = new Point();
-            activity.getWindowManager().getDefaultDisplay().getSize(mWindowSize);
-            final int toOpen = getCurrentCameraId();
-
-            int switchDrawableId = super.getBaseCaptureInterface().getCurrentCameraPosition() == InitialCamera.CAMERA_POSITION_BACK ? InitialCamera.getInstance().getFrontCameraIcon() : InitialCamera.getInstance().getRearCameraIcon();
-            @SuppressWarnings("ResourceType")
-            Drawable switchDrawable = InitialCamera.getInstance().getCameraContext().getResources().getDrawable(switchDrawableId);
-            super.getBaseControlView().getSwitchCameraControlView().setBackground(switchDrawable);
-
-            mCamera = Camera.open(toOpen == -1 ? 0 : toOpen);
-            Camera.Parameters parameters = mCamera.getParameters();
-
-            List<Camera.Size> videoSizes = parameters.getSupportedVideoSizes();
-            List<Camera.Size> previewSizes = parameters.getSupportedPreviewSizes();
-
-            if (videoSizes == null || videoSizes.size() == 0)
-                videoSizes = parameters.getSupportedPreviewSizes();
-            mVideoSize = chooseVideoSize(super.getBaseCaptureInterface() , videoSizes);
-            Camera.Size previewSize = chooseOptimalSize(previewSizes , mVideoSize);
-            parameters.setPreviewSize(previewSize.width, previewSize.height);
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.KITKAT)
-                parameters.setRecordingHint(true);
-            setCameraDisplayOrientation(parameters);
-
-            if(parameters.getSupportedFlashModes() != null && parameters.getSupportedFlashModes().contains(super.getBaseCaptureInterface().getCurrentFlashMode()))
-                parameters.setFlashMode(super.getBaseCaptureInterface().getCurrentFlashMode());
-
-            drawingFocusView.setVisibility(getCurrentCameraId() == Camera.CameraInfo.CAMERA_FACING_FRONT || !super.getBaseCaptureInterface().isShowFocusPoint() ? View.GONE : View.VISIBLE);
-            mCamera.setParameters(parameters);
-            createPreview();
-        } catch (IllegalStateException e) {
-            throwError(new Exception("Cannot access the camera.", e));
-        } catch (RuntimeException e2) {
-            throwError(new Exception("Cannot access the camera, you may need to restart your device.", e2));
-        }
+        final int toOpen = getCurrentCameraPosition();
+        openCameraPosition(toOpen);
     }
 
     @Override
     public void closeCamera() {
-        if(mCamera != null) {
-            this.mPreviewView.getHolder().getSurface().release();
+        if(this.mCamera != null) {
+            this.mCameraSurfaceHolder.getSurface().release();
             this.mCamera.stopPreview();
             this.mCamera.release();
             this.mCamera = null;
@@ -185,36 +142,50 @@ public class CameraPreviewFragment extends BaseCameraFragment implements View.On
 
     @Override
     public void onPressCapture() {
-        mCamera.takePicture(null , null , this);
+        this.enableClickControlButton(false);
+        this.mCamera.takePicture(null , null , this);
     }
 
     @Override
     public void onPressFlash() {
 
         String flashMode = super.getBaseCaptureInterface().getCurrentFlashMode();
-        Camera.Parameters parameters = mCamera.getParameters();
+        String newFlashState = null;
+        Camera.Parameters parameters = this.mCamera.getParameters();
         if(parameters.getSupportedFlashModes() != null && parameters.getSupportedFlashModes().contains(super.getBaseCaptureInterface().getCurrentFlashMode())) {
             switch (flashMode) {
                 case Camera.Parameters.FLASH_MODE_AUTO : super.getBaseCaptureInterface().setCurrentFlashMode(Camera.Parameters.FLASH_MODE_OFF);
-                    super.getBaseControlView().getFlashControlView().setBackground(InitialCamera.getInstance().getCameraContext().getResources().getDrawable(R.drawable.ic_flash_off));
+                    newFlashState = Camera.Parameters.FLASH_MODE_OFF;
                     break;
                 case Camera.Parameters.FLASH_MODE_ON  : super.getBaseCaptureInterface().setCurrentFlashMode(Camera.Parameters.FLASH_MODE_AUTO);
-                    super.getBaseControlView().getFlashControlView().setBackground(InitialCamera.getInstance().getCameraContext().getResources().getDrawable(R.drawable.ic_flash_auto));
+                    newFlashState = Camera.Parameters.FLASH_MODE_AUTO;
                     break;
                 case Camera.Parameters.FLASH_MODE_OFF : super.getBaseCaptureInterface().setCurrentFlashMode(Camera.Parameters.FLASH_MODE_ON);
-                    super.getBaseControlView().getFlashControlView().setBackground(InitialCamera.getInstance().getCameraContext().getResources().getDrawable(R.drawable.ic_flash_on));
+                    newFlashState = Camera.Parameters.FLASH_MODE_ON;
                     break;
-                default: Log.d("" , "");
+                default: Log.d("Flash state" , "State not found");
             }
-            parameters.setFlashMode(super.getBaseCaptureInterface().getCurrentFlashMode());
-            mCamera.setParameters(parameters);
+            parameters.setFlashMode(this.mBaseCaptureInterface.getCurrentFlashMode());
+            this.mCamera.setParameters(parameters);
         }
+        this.mBaseControlView.onFlashStateChanged(newFlashState , (newFlashState != null ? "Flash state changed success" : "Flash state changed fail"));
+    }
 
+    @Override
+    public void onPressSwitch() {
+        this.enableClickControlButton(false);
+
+        this.mCamera.stopPreview();
+        //NB: if you don't release the current camera before switching, you app will crash
+        this.mCamera.release();
+
+        int toOpen = getCurrentCameraPosition();
+        openCameraPosition(toOpen);
     }
 
     @Override
     public void onPause() {
-        if (mCamera != null)
+        if (this.mCamera != null)
             closeCamera();
         super.onPause();
     }
@@ -222,16 +193,12 @@ public class CameraPreviewFragment extends BaseCameraFragment implements View.On
     @Override
     public void onDestroyView() {
         super.onDestroyView();
-        try {
-            mPreviewView.getHolder().getSurface().release();
-        } catch (Throwable ignored) { }
-        mPreviewFrame = null;
+        mCameraSurfaceHolder.removeCallback(this);
     }
 
     @Override
     public void onResume() {
         super.onResume();
-        openCamera();
     }
 
 
@@ -287,70 +254,68 @@ public class CameraPreviewFragment extends BaseCameraFragment implements View.On
         } catch (Exception e) {
             Log.d("CameraFragment" , "Camera set params fail!");
         }
-
-        mCamera.autoFocus(this);
+        if(this.hasAutoFocus)
+            this.mCamera.autoFocus(this);
     }
 
     @SuppressWarnings("WrongConstant")
     private void setCameraDisplayOrientation(Camera.Parameters parameters) {
         Camera.CameraInfo info =
                 new Camera.CameraInfo();
-        Camera.getCameraInfo(getCurrentCameraId(), info);
+        Camera.getCameraInfo(getCurrentCameraPosition(), info);
         final int deviceOrientation = ScreenHelper.getDisplayRotationDegree(getActivity());
-        mDisplayOrientation = ScreenHelper.getDisplayOrientation(
+        this.mDisplayOrientation = ScreenHelper.getDisplayOrientation(
                 info.orientation, deviceOrientation, info.facing == Camera.CameraInfo.CAMERA_FACING_FRONT);
         Log.d("CameraFragment", String.format("Orientations: Sensor = %d˚, Device = %d˚, Display = %d˚",
-                info.orientation, deviceOrientation, mDisplayOrientation));
+                info.orientation, deviceOrientation, this.mDisplayOrientation));
 
         int previewOrientation;
         if (CameraUtil.isArcWelder()) {
             previewOrientation = 0;
         } else {
-            previewOrientation = mDisplayOrientation;
-            if (ScreenHelper.isPortrait(deviceOrientation) && getCurrentCameraPosition() == InitialCamera.CAMERA_POSITION_FRONT)
-                previewOrientation = ScreenHelper.mirror(mDisplayOrientation);
+            previewOrientation = this.mDisplayOrientation;
+            if (ScreenHelper.isPortrait(deviceOrientation) && getCurrentCameraPosition() == Camera.CameraInfo.CAMERA_FACING_FRONT)
+                previewOrientation = ScreenHelper.mirror(this.mDisplayOrientation);
         }
         parameters.setRotation(previewOrientation);
-        mCamera.setDisplayOrientation(previewOrientation);
-    }
-
-    private void createPreview() {
-        Activity activity = getActivity();
-        if (activity == null) return;
-        if (mWindowSize == null)
-            mWindowSize = new Point();
-        activity.getWindowManager().getDefaultDisplay().getSize(mWindowSize);
-        mPreviewView = new CameraPreview(getActivity(), mCamera);
-
-        FrameLayout viewFrame = (FrameLayout) mPreviewFrame;
-
-        if (viewFrame.getChildCount() > 0 && (viewFrame.getChildAt(0) instanceof CameraPreview))
-            viewFrame.removeViewAt(0);
-        viewFrame.addView(mPreviewView, 0);
+        this.mCamera.setDisplayOrientation(previewOrientation);
     }
 
     @Override
     public void onPictureTaken(byte[] data, Camera camera) {
         if (data.length > 0) {
             Bitmap srcBitmap = BitmapFactory.decodeByteArray(data, 0, data.length);
+
+            if(mBaseCaptureInterface.getCurrentCameraPosition() == Camera.CameraInfo.CAMERA_FACING_FRONT) {
+                Matrix matrix = new Matrix();
+                matrix.preScale(1.0f, -1.0f);
+                srcBitmap = Bitmap.createBitmap(srcBitmap, 0, 0, srcBitmap.getWidth(), srcBitmap.getHeight(), matrix, true);
+            }
+
             Bitmap croppedBitmap = null;
             boolean isPortrait = ScreenHelper.isPortrait(getActivity());
 
-            if(super.getBaseCaptureInterface().isUseRectangularMode()) {
+            if(super.getBaseCaptureInterface().isCropSquareImage()) {
                 if(isPortrait)
                     croppedBitmap = Bitmap.createBitmap(srcBitmap, 0, 0, srcBitmap.getWidth() , srcBitmap.getWidth());
                 else
                     croppedBitmap = Bitmap.createBitmap(srcBitmap, 0, 0, srcBitmap.getHeight() , srcBitmap.getHeight());
 
-                super.getBaseCaptureInterface().onCapture(croppedBitmap , camera);
+                super.getBaseControlView().onCapture(croppedBitmap , camera);
             } else {
-                super.getBaseCaptureInterface().onCapture(srcBitmap , camera);
+                super.getBaseControlView().onCapture(srcBitmap , camera);
             }
 
-            Log.d("CREATE BItMAP" , "Complete");
+            this.enableClickControlButton(true);
+            Log.d("CREATE BITMAP" , "Complete");
         } else {
             Log.d("CREATE BITMAP" , "Fail");
         }
+    }
+
+    @Override
+    public void initControlView() {
+        this.mBaseControlView = super.getBaseControlView();
     }
 
     @Override
@@ -365,7 +330,78 @@ public class CameraPreviewFragment extends BaseCameraFragment implements View.On
                 this.drawingFocusView.invalidate();
             }
 
-            this.drawingFocusView.setVisibility(super.getCurrentCameraId() == Camera.CameraInfo.CAMERA_FACING_FRONT || !super.getBaseCaptureInterface().isShowFocusPoint() ? View.GONE : View.VISIBLE);
+            this.drawingFocusView.setVisibility(super.getCurrentCameraPosition() == Camera.CameraInfo.CAMERA_FACING_FRONT || !super.getBaseCaptureInterface().isShowFocusPoint() ? View.GONE : View.VISIBLE);
         }
+    }
+
+
+    @Override
+    public void surfaceCreated(SurfaceHolder surfaceHolder) {
+        openCamera();
+    }
+
+    @Override
+    public void surfaceChanged(SurfaceHolder surfaceHolder, int i, int i1, int i2) {
+        if (surfaceHolder.getSurface() == null)
+            return;
+    }
+
+    @Override
+    public void surfaceDestroyed(SurfaceHolder surfaceHolder) {
+        surfaceHolder.removeCallback(this);
+    }
+
+    private void openCameraPosition(final int toOpen) {
+        getActivity().runOnUiThread(new Runnable() {
+            @Override
+            public void run() {
+                mCamera = Camera.open(toOpen);
+
+                Camera.Parameters parameters = mCamera.getParameters();
+
+                List<Camera.Size> videoSizes = parameters.getSupportedVideoSizes();
+                List<Camera.Size> previewSizes = parameters.getSupportedPreviewSizes();
+
+                if (videoSizes == null || videoSizes.size() == 0)
+                    videoSizes = parameters.getSupportedPreviewSizes();
+                mVideoSize = chooseVideoSize(mBaseCaptureInterface, videoSizes);
+                Camera.Size previewSize = chooseOptimalSize(previewSizes, mVideoSize);
+                parameters.setPreviewSize(previewSize.width, previewSize.height);
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.KITKAT)
+                    parameters.setRecordingHint(true);
+                setCameraDisplayOrientation(parameters);
+
+                if (parameters.getSupportedFlashModes() != null && parameters.getSupportedFlashModes().contains(mBaseCaptureInterface.getCurrentFlashMode()))
+                    parameters.setFlashMode(mBaseCaptureInterface.getCurrentFlashMode());
+
+                getActivity().runOnUiThread(new Runnable() {
+                    @Override
+                    public void run() {
+                        drawingFocusView.setVisibility(getCurrentCameraPosition() == Camera.CameraInfo.CAMERA_FACING_FRONT || !mBaseCaptureInterface.isShowFocusPoint() ? View.GONE : View.VISIBLE);
+                    }
+                });
+
+                List<String> supportedFocusModes = mCamera.getParameters().getSupportedFocusModes();
+                hasAutoFocus = supportedFocusModes != null && supportedFocusModes.contains(Camera.Parameters.FOCUS_MODE_AUTO);
+                mCamera.setParameters(parameters);
+
+                try {
+                    mCamera.setPreviewDisplay(mCameraSurfaceHolder);
+                } catch (IOException e) {
+                    e.printStackTrace();
+                }
+                mCamera.startPreview();
+
+                mBaseControlView.onSwitchedCamera(toOpen , "Open " + (toOpen == Camera.CameraInfo.CAMERA_FACING_FRONT ? "front" : "rear") + " camera success");
+                enableClickControlButton(true);
+            }
+        });
+
+    }
+
+    private void enableClickControlButton(boolean isEnable) {
+        this.mBaseControlView.getCaptureControlView().setClickable(isEnable);
+        this.mBaseControlView.getFlashControlView().setClickable(isEnable);
+        this.mBaseControlView.getSwitchCameraControlView().setClickable(isEnable);
     }
 }

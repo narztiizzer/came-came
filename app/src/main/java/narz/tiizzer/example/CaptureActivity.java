@@ -1,10 +1,7 @@
 package narz.tiizzer.example;
 
-import android.graphics.Bitmap;
 import android.hardware.Camera;
-import android.support.annotation.DrawableRes;
 import android.support.annotation.NonNull;
-import android.util.Log;
 
 import narz.tiizzer.camecame.base.BaseCaptureActivity;
 import narz.tiizzer.camecame.base.BaseControlView;
@@ -13,26 +10,12 @@ import narz.tiizzer.camecame.base.BaseControlView;
  * Created by narztiizzer on 8/25/2016 AD.
  */
 public class CaptureActivity extends BaseCaptureActivity {
-    @NonNull
-    @Override
-    public String setFrameControlBackground() {
-        return "#66FF40";
-    }
 
-    @NonNull
-    @Override
-    public int setStatusBarColor() {
-        return 0;
-    }
-
-    @NonNull
-    @Override
-    public int setNavigationBarColor() {
-        return 0;
-    }
+    private String currentFlashMode = Camera.Parameters.FLASH_MODE_AUTO;
+    private int mCameraPosition = Camera.CameraInfo.CAMERA_FACING_FRONT;
 
     @Override
-    public boolean isRectangularMode() {
+    public boolean isCropSquareImage() {
         return false;
     }
 
@@ -48,14 +31,23 @@ public class CaptureActivity extends BaseCaptureActivity {
     }
 
     @Override
-    public void onCapture(Bitmap bmp, Camera camera) {
-        Log.d("CAPTURE" , "Capture result");
-        camera.startPreview();
+    public void setCameraPosition(int position) {
+        mCameraPosition = position;
     }
 
     @Override
-    public boolean isUseRectangularMode() {
-        return isRectangularMode();
+    public int getCurrentCameraPosition() {
+        return mCameraPosition;
+    }
+
+    @Override
+    public String getCurrentFlashMode() {
+        return currentFlashMode;
+    }
+
+    @Override
+    public void setCurrentFlashMode(String currentFlashMode) {
+        this.currentFlashMode = currentFlashMode;
     }
 
 }

@@ -1,5 +1,7 @@
 package narz.tiizzer.example;
 
+import android.graphics.Bitmap;
+import android.hardware.Camera;
 import android.os.Bundle;
 import android.util.Log;
 import android.view.View;
@@ -13,43 +15,18 @@ import narz.tiizzer.camecame.base.BaseControlView;
 public class CaptureController extends BaseControlView {
 
     @Override
-    public int setFrontCameraIcon() {
-        return 0;
+    public void onCapture(Bitmap bmp, Camera camera) {
+        Log.d("TAG" , "Capture");
     }
 
     @Override
-    public int setRearCameraIcon() {
-        return 0;
+    public void onFlashStateChanged(String flashState, String message) {
+        Log.d("TAG" , message);
     }
 
     @Override
-    public int setCaptureIcon() {
-        return 0;
-    }
-
-    @Override
-    public int setRetakeIcon() {
-        return 0;
-    }
-
-    @Override
-    public int setFlashOnIcon() {
-        return 0;
-    }
-
-    @Override
-    public int setFlashOffIcon() {
-        return 0;
-    }
-
-    @Override
-    public int setFlashAutoIcon() {
-        return 0;
-    }
-
-    @Override
-    public String setControlBackgroundColor() {
-        return null;
+    public void onSwitchedCamera(int cameraId, String message) {
+        Log.d("TAG" , message);
     }
 
     @Override
@@ -59,11 +36,22 @@ public class CaptureController extends BaseControlView {
 
     @Override
     public void onControlViewCreated(View controlView, Bundle savedInstanceState) {
-        setSwitchCameraControlView(controlView.findViewById(R.id.switchCameraButton));
-        setFlashControlView(controlView.findViewById(R.id.flashButton));
-        setCaptureControlView(controlView.findViewById(R.id.captureButton));
         Log.d("Control view" , "Control view created");
-        invalidateControlView();
+    }
+
+    @Override
+    public int setCaptureControlView() {
+        return R.id.captureButton;
+    }
+
+    @Override
+    public int setSwitchCameraControlView() {
+        return R.id.switchCameraButton;
+    }
+
+    @Override
+    public int setFlashControlView() {
+        return R.id.flashButton;
     }
 
 }

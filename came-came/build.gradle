@@ -1,5 +1,29 @@
 apply plugin: 'com.android.library'
 
+ext {
+    bintrayRepo = 'maven'
+    bintrayName = 'came-came'
+
+    publishedGroupId = 'narz.tiizzer.library'
+    libraryName = 'CameCame'
+    artifact = 'came-came'
+
+    libraryDescription = 'Custom camera library by narztiizer [credit by : afollestad:material-camera]'
+
+    siteUrl = 'https://github.com/narztiizzer/came-came'
+    gitUrl = 'https://github.com/narztiizzer/came-came.git'
+
+    libraryVersion = '1.0.6'
+
+    developerId = 'narztiizzer'
+    developerName = 'Nattapong Poomtong'
+    developerEmail = 'nattapong.poom@gmail.com'
+
+    licenseName = 'The Apache Software License, Version 2.0'
+    licenseUrl = 'http://www.apache.org/licenses/LICENSE-2.0.txt'
+    allLicenses = ["Apache-2.0"]
+}
+
 android {
     compileSdkVersion 24
     buildToolsVersion "24.0.1"
@@ -8,8 +32,9 @@ android {
         minSdkVersion 17
         targetSdkVersion 24
         versionCode 1
-        versionName "1.0"
+        versionName "1.0.6"
     }
+
     buildTypes {
         release {
             minifyEnabled false
@@ -23,3 +48,6 @@ dependencies {
     testCompile 'junit:junit:4.12'
     compile 'com.android.support:appcompat-v7:24.1.1'
 }
+
+apply from: 'https://dl.dropboxusercontent.com/u/83667991/Library/Script/install-v1.gradle'
+apply from: 'https://dl.dropboxusercontent.com/u/83667991/Library/Script/bintray-v1.gradle'

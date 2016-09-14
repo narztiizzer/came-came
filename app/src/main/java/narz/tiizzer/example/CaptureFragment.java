@@ -13,32 +13,13 @@ import narz.tiizzer.camecame.base.BaseControlView;
  */
 public class CaptureFragment extends BaseCaptureFragment {
 
+    private String currentFlashMode = Camera.Parameters.FLASH_MODE_AUTO;
+    private int mCameraPosition = Camera.CameraInfo.CAMERA_FACING_FRONT;
+
     public static CaptureFragment newInstance() {
         return new CaptureFragment();
     }
 
-    @NonNull
-    @Override
-    public String setFrameControlBackground() {
-        return "#FFFFFF";
-    }
-
-    @NonNull
-    @Override
-    public int setStatusBarColor() {
-        return 0;
-    }
-
-    @NonNull
-    @Override
-    public int setNavigationBarColor() {
-        return 0;
-    }
-
-    @Override
-    public boolean isRectangularMode() {
-        return false;
-    }
 
     @Override
     public boolean isShowFocusPoint() {
@@ -53,13 +34,27 @@ public class CaptureFragment extends BaseCaptureFragment {
     }
 
     @Override
-    public void onCapture(Bitmap bmp, Camera camera) {
-        Log.d("CAPTURE" , "Capture result");
-        camera.startPreview();
+    public boolean isCropSquareImage() {
+        return false;
     }
 
     @Override
-    public boolean isUseRectangularMode() {
-        return isRectangularMode();
+    public String getCurrentFlashMode() {
+        return currentFlashMode;
+    }
+
+    @Override
+    public void setCurrentFlashMode(String currentFlashMode) {
+        this.currentFlashMode = currentFlashMode;
+    }
+
+    @Override
+    public int getCurrentCameraPosition() {
+        return mCameraPosition;
+    }
+
+    @Override
+    public void setCameraPosition(int position) {
+        mCameraPosition = position;
     }
 }

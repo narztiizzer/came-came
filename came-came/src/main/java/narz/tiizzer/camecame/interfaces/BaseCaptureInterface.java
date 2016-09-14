@@ -15,26 +15,11 @@ import narz.tiizzer.camecame.base.BaseControlView;
 
 public interface BaseCaptureInterface {
 
-    @SuppressWarnings("deprecation")
-    void onCapture(Bitmap bmp , Camera camera);
-
     void setCameraPosition(int position);
 
-    void toggleCameraPosition();
-
-    void setFrontCamera(Object id);
-
-    void setBackCamera(Object id);
-
-    Object getCurrentCameraId();
-
-    Object getFrontCamera();
-
-    Object getBackCamera();
+    boolean toggleCameraPosition();
 
     float videoPreferredAspect();
-
-    boolean isUseRectangularMode();
 
     int getCurrentCameraPosition();
 
@@ -47,18 +32,7 @@ public interface BaseCaptureInterface {
     @NonNull
     BaseControlView setControlView();
 
-    boolean isRectangularMode();
+    boolean isCropSquareImage();
 
     boolean isShowFocusPoint();
-
-    @NonNull
-    String setFrameControlBackground();
-
-    @TargetApi(Build.VERSION_CODES.LOLLIPOP)
-    @NonNull
-    int setStatusBarColor();
-
-    @TargetApi(Build.VERSION_CODES.LOLLIPOP)
-    @NonNull
-    int setNavigationBarColor();
 }

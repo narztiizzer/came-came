@@ -2,7 +2,7 @@
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:orientation="horizontal" android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="#ffffff"
+    android:background="#333333"
     android:focusableInTouchMode="true" >
 
     <FrameLayout
@@ -11,10 +11,11 @@
         android:layout_weight="1">
 
         <ImageView
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
+            android:layout_width="32dp"
+            android:layout_height="32dp"
             android:id="@+id/switchCameraButton"
-            android:layout_gravity="center" />
+            android:layout_gravity="center"
+            android:src="@drawable/ic_circle_refresh" />
 
         <requestFocus android:layout_gravity="center" />
     </FrameLayout>
@@ -25,10 +26,11 @@
         android:layout_weight="1">
 
         <ImageView
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
+            android:layout_width="64dp"
+            android:layout_height="64dp"
             android:id="@+id/captureButton"
-            android:layout_gravity="center" />
+            android:layout_gravity="center"
+            android:src="@drawable/ic_capture" />
 
         <requestFocus android:layout_gravity="center" />
     </FrameLayout>
@@ -39,10 +41,11 @@
         android:layout_weight="1">
 
         <ImageView
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
+            android:layout_width="32dp"
+            android:layout_height="32dp"
             android:id="@+id/flashButton"
-            android:layout_gravity="center" />
+            android:layout_gravity="center"
+            android:src="@drawable/ic_flash_on" />
 
         <requestFocus android:layout_gravity="center" />
     </FrameLayout>
